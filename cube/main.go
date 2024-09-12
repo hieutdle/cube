@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/google/uuid"
@@ -11,6 +12,39 @@ import (
 	"github.com/hieutdle/Himmel/cube/task"
 	"github.com/hieutdle/Himmel/cube/worker"
 )
+
+func createContainer() (*task.Docker, *task.DockerResult) {
+	c := task.Config{
+		Name:  "test-container-1",
+		Image: "postgres:13",
+		Env: []string{
+			"POSTGRES_USER=cube",
+			"POSTGRES_PASSWORD=secret",
+		},
+	}
+
+	d := task.NewDocker(&c)
+
+	result := d.Run()
+	if result.Error != nil {
+		fmt.Printf("Error: %v\n", result.Error)
+		return nil, nil
+	}
+
+	fmt.Printf("Container %s is running with config %v \n", result.ContainerId, c)
+	return d, &result
+}
+
+func stopContainer(d *task.Docker, id string) *task.DockerResult {
+	result := d.Stop(id)
+	if result.Error != nil {
+		fmt.Printf("%v\n", result.Error)
+		return nil
+	}
+
+	fmt.Printf("Container %s has been stopped and removed\n", result.ContainerId)
+	return &result
+}
 
 func main() {
 	t := task.Task{
@@ -65,4 +99,15 @@ func main() {
 	}
 
 	fmt.Printf("node: %v\n", n)
+
+	fmt.Println("create a test container \n")
+	dockerTask, createResult := createContainer()
+	if createResult.Error != nil {
+		fmt.Printf("%v\n", createResult.Error)
+		os.Exit(1)
+	}
+
+	time.Sleep(time.Second * 5)
+	fmt.Printf("stoppingcontainer %s\n", createResult.ContainerId)
+	_ = stopContainer(dockerTask, createResult.ContainerId)
 }
